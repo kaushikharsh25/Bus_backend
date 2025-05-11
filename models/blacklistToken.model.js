@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+// Define the schema for the blacklist token
 const blacklistTokenSchema = new mongoose.Schema({
     token: {
         type: String,

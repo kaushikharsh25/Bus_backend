@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const blackListTokenModel = require('../models/blackListToken.model');
 const captainModel = require('../models/captain.model');
 
-
+// user authentication middleware
 module.exports.authUser = async (req, res, next) => {
     const token = req.cookies.token || req.headers.authorization?.split(' ')[ 1 ];
 
@@ -33,6 +33,7 @@ module.exports.authUser = async (req, res, next) => {
     }
 }
 
+// captain authentication middleware
 module.exports.authCaptain = async (req, res, next) => {
     const token = req.cookies.token || req.headers.authorization?.split(' ')[ 1 ];
 
