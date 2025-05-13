@@ -12,17 +12,17 @@ const rideSchema = new mongoose.Schema({
         ref: 'captain',
     },
     pickup: {
-        type: String,
-        required: true,
-    },
-    destination: {
-        type: String,
-        required: true,
-    },
-    fare: {
+        lat: Number,
+        lng: Number
+      },
+      destination: {
+        lat: Number,
+        lng: Number
+      },
+      fare: {
         type: Number,
-        required: true,
-    },
+        required: false // optional now
+      },
 
     status: {
         type: String,
@@ -50,9 +50,8 @@ const rideSchema = new mongoose.Schema({
 
     otp: {
         type: String,
-        select: false,
-        required: true,
-    },
+        required: false // optional now
+      },
 })
 
 module.exports = mongoose.model('ride', rideSchema);

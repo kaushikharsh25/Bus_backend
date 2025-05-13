@@ -1,17 +1,17 @@
 const axios = require('axios');
 const captainModel = require('../models/captain.model');
+const ORS_API = process.env.ORS_API;
 
 module.exports.getAddressCoordinate = async (address) => {
-    const apiKey = process.env.GOOGLE_MAPS_API;
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
+    const url = `https://api.openrouteservice.org/geocode/search?api_key=${ORS_API}&text=${encodeURIComponent(address)}`;
 
     try {
         const response = await axios.get(url);
-        if (response.data.status === 'OK') {
-            const location = response.data.results[ 0 ].geometry.location;
+        if (response.data && response.data.features.length > 0) {
+            const location = response.data.features[0].geometry.coordinates;
             return {
-                ltd: location.lat,
-                lng: location.lng
+                lng: location[0],
+                ltd: location[1]
             };
         } else {
             throw new Error('Unable to fetch coordinates');
@@ -20,50 +20,60 @@ module.exports.getAddressCoordinate = async (address) => {
         console.error(error);
         throw error;
     }
-}
+};
 
 module.exports.getDistanceTime = async (origin, destination) => {
     if (!origin || !destination) {
         throw new Error('Origin and destination are required');
     }
 
-    const apiKey = process.env.GOOGLE_MAPS_API;
+    // First, get coordinates for origin and destination
+    const originCoords = await module.exports.getAddressCoordinate(origin);
+    const destinationCoords = await module.exports.getAddressCoordinate(destination);
 
-    const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(origin)}&destinations=${encodeURIComponent(destination)}&key=${apiKey}`;
+    const body = {
+        coordinates: [
+            [originCoords.lng, originCoords.ltd],
+            [destinationCoords.lng, destinationCoords.ltd]
+        ]
+    };
 
     try {
-
-
-        const response = await axios.get(url);
-        if (response.data.status === 'OK') {
-
-            if (response.data.rows[ 0 ].elements[ 0 ].status === 'ZERO_RESULTS') {
-                throw new Error('No routes found');
+        const response = await axios.post(
+            'https://api.openrouteservice.org/v2/directions/driving-car',
+            body,
+            {
+                headers: {
+                    'Authorization': ORS_API,
+                    'Content-Type': 'application/json'
+                }
             }
+        );
 
-            return response.data.rows[ 0 ].elements[ 0 ];
-        } else {
-            throw new Error('Unable to fetch distance and time');
-        }
+        const segment = response.data.features[0].properties.segments[0];
+
+        return {
+            distance: segment.distance, // in meters
+            duration: segment.duration // in seconds
+        };
 
     } catch (err) {
         console.error(err);
-        throw err;
+        throw new Error('Unable to fetch distance and time');
     }
-}
+};
 
 module.exports.getAutoCompleteSuggestions = async (input) => {
     if (!input) {
         throw new Error('query is required');
     }
 
-    const apiKey = process.env.GOOGLE_MAPS_API;
-    const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&key=${apiKey}`;
+    const url = `https://api.openrouteservice.org/geocode/autocomplete?api_key=${ORS_API}&text=${encodeURIComponent(input)}`;
 
     try {
         const response = await axios.get(url);
-        if (response.data.status === 'OK') {
-            return response.data.predictions.map(prediction => prediction.description).filter(value => value);
+        if (response.data && response.data.features.length > 0) {
+            return response.data.features.map(f => f.properties.label).filter(Boolean);
         } else {
             throw new Error('Unable to fetch suggestions');
         }
@@ -71,22 +81,17 @@ module.exports.getAutoCompleteSuggestions = async (input) => {
         console.error(err);
         throw err;
     }
-}
+};
 
 module.exports.getCaptainsInTheRadius = async (ltd, lng, radius) => {
-
     // radius in km
-
-
     const captains = await captainModel.find({
         location: {
             $geoWithin: {
-                $centerSphere: [ [ ltd, lng ], radius / 6371 ]
+                $centerSphere: [[ltd, lng], radius / 6371]
             }
         }
     });
 
     return captains;
-
-
-}
+};

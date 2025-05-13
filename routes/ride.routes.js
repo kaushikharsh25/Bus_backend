@@ -1,44 +1,54 @@
 const express = require('express');
 const router = express.Router();
-const { body, query } = require('express-validator');
 const rideController = require('../controllers/ride.controller');
+const { body, query } = require('express-validator');
 const authMiddleware = require('../middlewares/auth.middleware');
-
-
 router.post('/create',
+    body('pickup').isObject().notEmpty().withMessage('Pickup should be an object with lat and lng'),
+    body('destination').isObject().notEmpty().withMessage('Destination should be an object with lat and lng'),
+    body('busId').isMongoId().notEmpty().withMessage('Bus ID must be a valid MongoDB ObjectId'),
     authMiddleware.authUser,
-    body('pickup').isString().isLength({ min: 3 }).withMessage('Invalid pickup address'),
-    body('destination').isString().isLength({ min: 3 }).withMessage('Invalid destination address'),
-    body('vehicleType').isString().isIn([ 'auto', 'car', 'moto' ]).withMessage('Invalid vehicle type'),
     rideController.createRide
-)
-
+);
 router.get('/get-fare',
-    authMiddleware.authUser,
-    query('pickup').isString().isLength({ min: 3 }).withMessage('Invalid pickup address'),
-    query('destination').isString().isLength({ min: 3 }).withMessage('Invalid destination address'),
-    rideController.getFare
-)
+    query('pickup').isString().notEmpty(),
+    query('destination').isString().notEmpty(),
+    rideController.getFare // This can be removed if it's no longer needed.
+);
 
 router.post('/confirm',
+    body('rideId').isMongoId().notEmpty(),
+    body('busId').isMongoId().notEmpty(),
     authMiddleware.authCaptain,
-    body('rideId').isMongoId().withMessage('Invalid ride id'),
     rideController.confirmRide
-)
+);
 
-router.get('/start-ride',
+router.post('/start',
+    query('rideId').isMongoId().notEmpty(),
+    query('busId').isMongoId().notEmpty(),
     authMiddleware.authCaptain,
-    query('rideId').isMongoId().withMessage('Invalid ride id'),
-    query('otp').isString().isLength({ min: 6, max: 6 }).withMessage('Invalid OTP'),
     rideController.startRide
-)
+);
 
-router.post('/end-ride',
+router.post('/end',
+    body('rideId').isMongoId().notEmpty(),
+    body('busId').isMongoId().notEmpty(),
     authMiddleware.authCaptain,
-    body('rideId').isMongoId().withMessage('Invalid ride id'),
     rideController.endRide
-)
+);
 
+router.post('/cancel',
+    body('rideId').isMongoId().notEmpty(),
+    rideController.cancelRide
+);
 
+router.get('/track-bus-location',
+    query('busId').isMongoId().notEmpty(),
+    rideController.trackBusLocation
+);
+
+router.get('/view-all-rides/:userId',
+    rideController.viewAllRides
+);
 
 module.exports = router;
